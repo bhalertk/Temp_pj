@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>題目查詢</title>
+<style>
+  button { margin: 5px; padding: 8px 12px; }
+  ul { list-style: none; padding: 0; }
+  li { padding: 5px; cursor: pointer; border-bottom: 1px solid #ddd; }
+  li:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+
+<h2>題目查詢</h2>
+<div id="container"></div>
+
+<script>
+// 模擬 CSV 資料
+let data = [
+  {answer:"42", question:"生命的意義是什麼"},
+  {answer:"藍色", question:"天空的顏色是什麼"},
+  {answer:"台北", question:"台灣的首都是哪裡"},
+  {answer:"狗", question:"最忠心的動物是什麼"}
+];
+
+// 依題目第一個字分組
+let groups = {};
+data.forEach(item => {
+  let first = item.question[0]; // 題目第一個字
+  if(!groups[first]) groups[first] = [];
+  groups[first].push(item);
+});
+
+let container = document.getElementById("container");
+
+// 初始顯示「字母按鈕」
+function showButtons() {
+  container.innerHTML = "<h3>請選擇題目開頭字</h3>";
+  for(let key in groups){
+    let btn = document.createElement("button");
+    btn.textContent = key;
+    btn.onclick = () => showQuestions(key);
+    container.appendChild(btn);
+  }
+}
+
+// 顯示某字開頭的題目清單
+function showQuestions(letter){
+  container.innerHTML = `<h3>${letter} 開頭的題目</h3>`;
+  let ul = document.createElement("ul");
+  groups[letter].forEach(item => {
+    let li = document.createElement("li");
+    li.textContent = item.question;
+    li.onclick = () => showAnswer(letter, item);
+    ul.appendChild(li);
+  });
+  container.appendChild(ul);
+
+  // 返回按鈕
+  let backBtn = document.createElement("button");
+  backBtn.textContent = "返回字母清單";
+  backBtn.onclick = showButtons;
+  container.appendChild(backBtn);
+}
+
+// 顯示答案
+function showAnswer(letter, item){
+  container.innerHTML = `<h3>題目</h3><p>${item.question}</p>
+                         <h3>答案</h3><p>${item.answer}</p>`;
+  let backBtn = document.createElement("button");
+  backBtn.textContent = "返回題目清單";
+  backBtn.onclick = () => showQuestions(letter);
+  container.appendChild(backBtn);
+}
+
+showButtons();
+</script>
+
+</body>
+</html>
