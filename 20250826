@@ -1,0 +1,67 @@
+-- 定義變數 (DB2 使用 DECLARE)
+BEGIN
+    DECLARE v_tx_code VARCHAR(10) DEFAULT 'FR001T';
+    DECLARE v_message_code_p80 VARCHAR(10) DEFAULT 'P80';
+    DECLARE v_message_code_p80a VARCHAR(10) DEFAULT 'P80A';
+    DECLARE v_message_code_p80b VARCHAR(10) DEFAULT 'P80B';
+
+    -- 刪除現有表 (DB2 不支援 IF EXISTS 簡化形式，需手動處理)
+    DECLARE GLOBAL TEMPORARY TABLE SESSION.CMTDTGSM_A LIKE CMTDTGSM WITH REPLACE;
+    DECLARE GLOBAL TEMPORARY TABLE SESSION.CMDTDSOM_A LIKE CMDTDSOM WITH REPLACE;
+    DECLARE GLOBAL TEMPORARY TABLE SESSION.CMDTEPM_A LIKE CMDTEPM WITH REPLACE;
+    DECLARE GLOBAL TEMPORARY TABLE SESSION.CMDTSSM_A LIKE CMDTSSM WITH REPLACE;
+
+    -- 函數：從來源表中篩選並返回結果
+    CREATE FUNCTION GetFilteredData (
+        source_table VARCHAR(20),
+        tx_code_param VARCHAR(10),
+        message_code_param VARCHAR(10)
+    )
+    RETURNS TABLE (
+        -- 根據實際表結構定義欄位
+        tx_code VARCHAR(10),
+        message_code VARCHAR(10)
+        -- 加入其他必要欄位
+    )
+    RETURN
+        SELECT tx_code, message_code -- 替換為實際欄位
+        FROM TABLE (VALUES (source_table)) AS t
+        WHERE tx_code = tx_code_param AND message_code = message_code_param;
+
+    -- 儲存過程：執行更新邏輯
+    CREATE PROCEDURE UpdateMessageCode (
+        IN table_name VARCHAR(20),
+        IN new_message_code VARCHAR(10),
+        IN tx_code_param VARCHAR(10),
+        IN message_code_param VARCHAR(10)
+    )
+    LANGUAGE SQL
+    BEGIN
+        EXECUTE IMMEDIATE 'UPDATE ' || table_name || 
+            ' SET MESSAGE_CODE = ''' || new_message_code || '''' ||
+            ' WHERE TX_CODE = ''' || tx_code_param || ''' AND MESSAGE_CODE = ''' || message_code_param || '''';
+    END;
+
+    -- 使用函數篩選資料
+    SELECT * FROM TABLE(GetFilteredData('CMTDTGSM', v_tx_code, v_message_code_p80)) AS filtered_gsm;
+    SELECT * FROM TABLE(GetFilteredData('CMTDTSOM', v_tx_code, v_message_code_p80)) AS filtered_som;
+    SELECT * FROM TABLE(GetFilteredData('CMTDTEPM', v_tx_code, v_message_code_p80)) AS filtered_epm;
+    SELECT * FROM TABLE(GetFilteredData('CMTDTSSM', v_tx_code, v_message_code_p80)) AS filtered_ssm;
+
+    -- 使用儲存過程更新資料
+    CALL UpdateMessageCode('CMTDTGSM', v_message_code_p80a, v_tx_code, v_message_code_p80);
+    CALL UpdateMessageCode('CMTDTSOM', v_message_code_p80a, v_tx_code, v_message_code_p80);
+    CALL UpdateMessageCode('CMTDTEPM', v_message_code_p80a, v_tx_code, v_message_code_p80);
+    CALL UpdateMessageCode('CMTDTSSM', v_message_code_p80a, v_tx_code, v_message_code_p80);
+
+    -- 後續複雜更新邏輯
+    UPDATE CMTDTSOM
+    SET CON_CODE = 'F'
+    WHERE TX_CODE = v_tx_code AND MESSAGE_CODE = v_message_code_p80a
+    AND TAG_ID IN ('A01', 'A08');
+
+    UPDATE CMTDTSOM
+    SET CON_CODE = 'T'
+    WHERE TX_CODE = v_tx_code AND MESSAGE_CODE = v_message_code_p80a
+    AND TAG_ID IN ('Au3', 'Au4');
+END;
