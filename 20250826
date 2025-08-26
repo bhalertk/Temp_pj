@@ -1,0 +1,61 @@
+-- 定義變數，區分來源與目的
+BEGIN
+    -- 來源變數
+    DECLARE v_src_tx_code VARCHAR(10) DEFAULT 'FR001T';
+    DECLARE v_src_message_code VARCHAR(10) DEFAULT 'P80';
+
+    -- 目的變數
+    DECLARE v_tgt_tx_code VARCHAR(10) DEFAULT 'FR001T'; -- 可根據需求修改
+    DECLARE v_tgt_message_code VARCHAR(10) DEFAULT 'P80A';
+
+    -- 處理 CMTDTGSM
+    WITH SourceGSM AS (
+        SELECT * FROM CMTDTGSM
+        WHERE TX_CODE = v_src_tx_code AND MESSAGE_CODE = v_src_message_code
+    )
+    INSERT INTO CMTDTGSM
+    SELECT v_tgt_tx_code, v_tgt_message_code, -- 替換為實際欄位
+           -- 根據表結構複製其他欄位，略過自增鍵或不需複製的欄位
+           CASE WHEN TAG_ID IN ('A01', 'A08') THEN 'F' ELSE CON_CODE END AS CON_CODE,
+           TEXT,
+           -- 其他欄位...
+    FROM SourceGSM;
+
+    -- 處理 CMTDTSOM
+    WITH SourceSOM AS (
+        SELECT * FROM CMTDTSOM
+        WHERE TX_CODE = v_src_tx_code AND MESSAGE_CODE = v_src_message_code
+    )
+    INSERT INTO CMTDTSOM
+    SELECT v_tgt_tx_code, v_tgt_message_code,
+           CASE WHEN TAG_ID IN ('A01', 'A08') THEN 'F' 
+                WHEN TAG_ID IN ('Au3', 'Au4') THEN 'T' 
+                ELSE CON_CODE END AS CON_CODE,
+           TEXT,
+           -- 其他欄位...
+    FROM SourceSOM;
+
+    -- 處理 CMTDTEPM
+    WITH SourceEPM AS (
+        SELECT * FROM CMTDTEPM
+        WHERE TX_CODE = v_src_tx_code AND MESSAGE_CODE = v_src_message_code
+    )
+    INSERT INTO CMTDTEPM
+    SELECT v_tgt_tx_code, v_tgt_message_code,
+           CON_CODE,
+           TEXT,
+           -- 其他欄位...
+    FROM SourceEPM;
+
+    -- 處理 CMTDTSSM
+    WITH SourceSSM AS (
+        SELECT * FROM CMTDTSSM
+        WHERE TX_CODE = v_src_tx_code AND MESSAGE_CODE = v_src_message_code
+    )
+    INSERT INTO CMTDTSSM
+    SELECT v_tgt_tx_code, v_tgt_message_code,
+           CON_CODE,
+           TEXT,
+           -- 其他欄位...
+    FROM SourceSSM;
+END;
